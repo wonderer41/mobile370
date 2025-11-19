@@ -1,4 +1,5 @@
 import { icons } from '@/constants';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import React, { useState } from 'react';
 import { FlatList, Image, ImageBackground, Text, TouchableOpacity, View } from 'react-native';
 
@@ -8,16 +9,108 @@ interface TrendingItemProps {
     $id?: string;
     id?: string | number;
     thumbnail: string;
+    video: string;
   };
 }
 
 const TrendingItem: React.FC<TrendingItemProps> = ({activeItem, item}) => {
-  const [play, setPlay] = useState(false)
+  const [play, setPlay] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  
+  // Create player with video source - check if it's a direct video URL
+  const isDirectVideo = item.video && (
+    item.video.includes('.mp4') || 
+    item.video.includes('.m3u8') ||
+    item.video.includes('.mov')
+  );
+  
+  const videoSource = isDirectVideo ? { uri: item.video } : null;
+  
+  const player = useVideoPlayer(videoSource, (player) => {
+    player.loop = false;
+    player.muted = false;
+  });
+
+  // Listen for playback end
+  React.useEffect(() => {
+    if (!player) return;
+    
+    const subscription = player.addListener('playToEnd', () => {
+      setPlay(false);
+      player.pause();
+      player.currentTime = 0;
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [player]);
+
+  // Listen for status changes to debug
+  React.useEffect(() => {
+    if (!player) return;
+    
+    const subscription = player.addListener('statusChange', ({ status, error }) => {
+      console.log('Video status:', status, 'for URL:', item.video);
+      if (error) {
+        console.error('Video error:', error.message);
+        setHasError(true);
+      }
+      if (status === 'readyToPlay') {
+        console.log('Video ready to play!');
+        setHasError(false);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [player]);
+
+  // Control playback based on play state
+  React.useEffect(() => {
+    if (!player) return;
+    
+    console.log('Play state changed:', play, 'Video URL:', item.video, 'Is direct video:', isDirectVideo);
+    
+    if (play) {
+      if (!isDirectVideo) {
+        console.warn('This is not a direct video URL. Vimeo embed URLs need to be converted to direct video URLs.');
+      }
+      player.play();
+    } else {
+      player.pause();
+    }
+  }, [play, player]);
 
     return (
         <View className="mr-4">
           {play ? (
-            <Text className='text-white'>Playing...</Text>
+            <View style={{ width: 224, height: 288, borderRadius: 35, overflow: 'hidden', marginVertical: 20, backgroundColor: '#000' }}>
+              {!isDirectVideo || hasError ? (
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+                  <Text style={{ color: '#fff', textAlign: 'center', marginBottom: 10 }}>
+                    {!isDirectVideo ? 'Vimeo embed URLs not supported' : 'Failed to load video'}
+                  </Text>
+                  <Text style={{ color: '#999', fontSize: 12, textAlign: 'center' }}>
+                    {item.video}
+                  </Text>
+                  <TouchableOpacity 
+                    onPress={() => setPlay(false)}
+                    style={{ marginTop: 20, padding: 10, backgroundColor: '#333', borderRadius: 5 }}
+                  >
+                    <Text style={{ color: '#fff' }}>Go Back</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <VideoView 
+                  player={player}
+                  style={{ width: '100%', height: '100%' }}
+                  contentFit='contain'
+                  nativeControls={true}
+                />
+              )}
+            </View>
           ) : (
             <TouchableOpacity
               activeOpacity={0.7}
@@ -49,7 +142,8 @@ interface TrendingProps {
     posts: { 
       $id?: string; 
       id?: string | number;
-      thumbnail: string; 
+      thumbnail: string;
+      video: string;
     }[];
 }
 

@@ -1,9 +1,9 @@
-import { Text, View, ScrollView, Image} from "react-native";
-import { Redirect, router } from "expo-router";
+import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { Image, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { images } from "../constants";
 import CustomButton from "../components/CustomButton";
+import { images } from "../constants";
 
 
 export default function Index() {
@@ -42,7 +42,7 @@ export default function Index() {
             </View>
             <CustomButton 
             title="Continue with Email"
-            handlePress={() => router.push('/(auth)/sign-in')}
+            handlePress={() => router.push('../(auth)/sign-in')}
             containerStyles="mt-7"
             textStyles=""
 
