@@ -383,7 +383,21 @@ export async function getAllPosts() {
       .order('created_at', { ascending: false })
 
     if (error) throw error
-    return data || []
+    
+    // Transform data to match component expectations
+    const transformedData = data?.map(item => ({
+      $id: item.id.toString(),
+      id: item.id,
+      title: item.title,
+      thumbnail: item.thumbnailurl,
+      video: item.videourl,
+      creator: {
+        username: item.profiles?.username || 'Unknown',
+        avatar: item.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.profiles?.username || 'User')}&background=random`
+      }
+    })) || []
+    
+    return transformedData
   } catch (error: any) {
     throw new Error(error.message)
   }
@@ -455,7 +469,21 @@ export async function getLatestPosts() {
       .limit(7)
 
     if (error) throw error
-    return data || []
+    
+    // Transform data to match component expectations  
+    const transformedData = data?.map(item => ({
+      $id: item.id.toString(),
+      id: item.id,
+      title: item.title,
+      thumbnail: item.thumbnailurl,
+      video: item.videourl,
+      creator: {
+        username: item.profiles?.username || 'Unknown',
+        avatar: item.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.profiles?.username || 'User')}&background=random`
+      }
+    })) || []
+    
+    return transformedData
   } catch (error: any) {
     throw new Error(error.message)
   }

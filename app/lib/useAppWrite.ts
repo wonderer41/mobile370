@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Alert } from "react-native";
+
 interface Post {
   $id: string;
+  id?: number;
   title: string;
   thumbnail: string;
   video: string;
@@ -10,15 +12,12 @@ interface Post {
     avatar: string;
   };
 }
-  
-  
+
 const useAppwrite = (fn: () => Promise<Post[]>) => {
-  
-  
   const [data, setData] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fn();
@@ -28,15 +27,17 @@ const useAppwrite = (fn: () => Promise<Post[]>) => {
     } finally{
       setIsLoading(false);
     }
-  }
+  }, [fn]);
+
   useEffect(() => {
-
     fetchData();
-  }, []);
+  }, [fetchData]);
 
-  const refetch = () => fetchData();
+  const refetch = useCallback(() => {
+    return fetchData();
+  }, [fetchData]);
 
-  return {data, isLoading, refetch};
+  return { data, isLoading, refetch };
 }
 
-export default useAppwrite
+export default useAppwrite;
