@@ -69,13 +69,7 @@ const Home: React.FC = () => {
                   </Text>
                 </View>
               </View>
-              <SearchInput
-              title='searchbar'
-              value='bar'
-              handleChangeText={(text) => {}}
-              placeholder='search for a video'
-              otherStyles='mt-1'
-              />
+              <SearchInput />
 
               <View className='w-full flex-1 pt-5 pb-8'>
                 <Text className='text-gray-100 text-lg font-pregular mb-3'>
