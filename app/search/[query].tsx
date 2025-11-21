@@ -1,16 +1,12 @@
 import EmptyState from '@/components/EmptyState';
 import VideoCard from '@/components/VideoCard';
 import { useLocalSearchParams } from 'expo-router';
-import React, { useEffect } from 'react';
-import { Alert, FlatList, Text, View } from 'react-native';
+import React, { useMemo } from 'react';
+import { Alert, FlatList, RefreshControl, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import SearchInput from '../../components/SearchInput';
 import { searchPosts } from '../lib/database';
 import useAppwrite from '../lib/useAppWrite';
-
-interface HomeItem {
-  id: number;
-}
 
 
 const Search: React.FC = () => {
@@ -18,13 +14,12 @@ const Search: React.FC = () => {
   const {query} = useLocalSearchParams();
   const searchQuery = Array.isArray(query) ? query[0] : query || '';
 
-  const { data: posts, refetch} = useAppwrite(() => searchPosts(searchQuery));
+  // Memoize the search function to prevent recreating on every render
+  const searchFunction = useMemo(() => {
+    return () => searchPosts(searchQuery);
+  }, [searchQuery]);
 
-  useEffect(() => {
-
-    refetch();
-  }, [query]);
-  
+  const { data: posts, refetch} = useAppwrite(searchFunction);
 
   const [refreshing, setRefreshing] = React.useState<boolean>(false);
 
@@ -63,8 +58,6 @@ const Search: React.FC = () => {
                   </Text>
             <View className='mt-6 mb-8'>
               <SearchInput initialQuery={searchQuery}/>
-              
-            
             </View>
             </View>
           )}
@@ -74,6 +67,7 @@ const Search: React.FC = () => {
               subtitle='No videos match your search criteria. Please try a different query.'
            />
           )}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>}
         />
       
     </SafeAreaView>

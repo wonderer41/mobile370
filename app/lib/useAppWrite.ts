@@ -17,7 +17,7 @@ const useAppwrite = (fn: () => Promise<Post[]>) => {
   const [data, setData] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = async () => {
     setIsLoading(true);
     try {
       const response = await fn();
@@ -27,15 +27,15 @@ const useAppwrite = (fn: () => Promise<Post[]>) => {
     } finally{
       setIsLoading(false);
     }
-  }, [fn]);
+  };
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, [fn]);
 
   const refetch = useCallback(() => {
     return fetchData();
-  }, [fetchData]);
+  }, []);
 
   return { data, isLoading, refetch };
 }

@@ -12,6 +12,13 @@ const SearchInput: React.FC<SearchInputProps> = ({ initialQuery }) => {
     const pathname = usePathname();
     const [query, setQuery] = useState(initialQuery || '');
 
+    // Sync internal state when initialQuery changes
+    React.useEffect(() => {
+        if (initialQuery !== undefined) {
+            setQuery(initialQuery);
+        }
+    }, [initialQuery]);
+
     return (
         <View className='border-2 border-zinc-800 w-full h-16 px-4 bg-black rounded-2xl focus:border-s-accent items-center flex-row space-x-4'>
             <TextInput 

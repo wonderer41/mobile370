@@ -58,6 +58,7 @@ const RootLayout = (): React.JSX.Element => {
         <Stack.Screen name="index" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="(auth)" />
+        <Stack.Screen name="search/[query]" />
       </Stack>
     </GlobalProvider>
   );
