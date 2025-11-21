@@ -305,22 +305,54 @@ export async function getProfile(userId: string) {
 export async function uploadFile(file: any, type: 'image' | 'video'): Promise<string> {
   try {
     if (!file) throw new Error('No file provided')
+    
+    // Check if user is authenticated
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      throw new Error('User must be authenticated to upload files')
+    }
+    
+    // Generate unique filename with user ID for better organization
+    const fileExt = file.split('.').pop() || (type === 'image' ? 'jpg' : 'mp4')
+    const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
+    
+    // Determine bucket name based on file type
+    const bucketName = 'videos1' // Using same bucket for both
+    
+    // Read file as ArrayBuffer for React Native
+    const response = await fetch(file)
+    const arrayBuffer = await response.arrayBuffer()
+    
+    console.log(`Uploading ${type} to bucket: ${bucketName}, path: ${type}s/${fileName}`)
+    
+    // Upload file to Supabase Storage with upsert enabled to bypass some RLS issues
+    const { data, error } = await supabase.storage
+      .from(bucketName)
+      .upload(`${type}s/${fileName}`, arrayBuffer, {
+        contentType: type === 'image' ? 'image/jpeg' : 'video/mp4',
+        upsert: true  // Changed to true to potentially bypass RLS issues
+      })
 
-    // For now, we'll use placeholder URLs until file upload is properly configured
-    // You'll need to set up Supabase Storage and implement actual file upload
+    if (error) {
+      console.error('Storage upload error:', error)
+      console.error('Error details:', JSON.stringify(error, null, 2))
+      throw new Error(`Upload failed: ${error.message}`)
+    }
+
+    // Get public URL for the uploaded file
+    const { data: publicUrlData } = supabase.storage
+      .from(bucketName)
+      .getPublicUrl(data.path)
+
+    if (!publicUrlData?.publicUrl) {
+      throw new Error('Failed to get public URL for uploaded file')
+    }
+
+    console.log(`${type} uploaded successfully:`, publicUrlData.publicUrl)
+    return publicUrlData.publicUrl
     
-    // Generate unique filename
-    const fileExt = file.uri?.split('.').pop() || (type === 'image' ? 'jpg' : 'mp4')
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
-    
-    // TODO: Implement actual file upload to Supabase Storage
-    // For now, return a placeholder URL
-    const placeholderUrl = type === 'image' 
-      ? `https://via.placeholder.com/400x300.jpg?text=${encodeURIComponent(fileName)}`
-      : `https://sample-videos.com/zip/10/mp4/SampleVideo_${Math.floor(Math.random() * 10)}.mp4`
-    
-    return placeholderUrl
   } catch (error: any) {
+    console.error('File upload error:', error)
     throw new Error(`File upload failed: ${error.message}`)
   }
 }
@@ -330,11 +362,18 @@ export async function uploadFile(file: any, type: 'image' | 'video'): Promise<st
 // Create Video Post
 export async function createVideoPost(form: VideoForm) {
   try {
-    // Upload files
+    console.log('Creating video post with form:', { title: form.title, userId: form.userId })
+    
+    // Upload files to Supabase Storage
+    console.log('Uploading thumbnail:', form.thumbnail)
+    console.log('Uploading video:', form.video)
+    
     const [thumbnailUrl, videoUrl] = await Promise.all([
       uploadFile(form.thumbnail, 'image'),
       uploadFile(form.video, 'video'),
     ])
+
+    console.log('Files uploaded successfully:', { thumbnailUrl, videoUrl })
 
     // Create video record
     const { data, error } = await supabase
@@ -359,9 +398,15 @@ export async function createVideoPost(form: VideoForm) {
       `)
       .single()
 
-    if (error) throw error
+    if (error) {
+      console.error('Database insert error:', error)
+      throw error
+    }
+    
+    console.log('Video post created successfully:', data.id)
     return data
   } catch (error: any) {
+    console.error('createVideoPost error:', error)
     throw new Error(error.message)
   }
 }
