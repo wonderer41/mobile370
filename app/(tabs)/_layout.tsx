@@ -1,6 +1,6 @@
-import { View, Text, Image, ImageSourcePropType } from 'react-native'
-import React from 'react'
-import { Tabs, Redirect } from 'expo-router';
+import { Tabs } from 'expo-router';
+import React from 'react';
+import { Image, ImageSourcePropType, Text, View } from 'react-native';
 
 import { icons } from '../../constants';
 
@@ -71,9 +71,9 @@ const TabsLayout = () => {
                 headerShown: false,
                 tabBarIcon: ({color, focused }) => (
                     <TabIcon 
-                    icon={icons.bookmark}
+                    icon={icons.like}
                     color={color}
-                    name="Bookmark"
+                    name="Favorites"
                     focused={focused}
 
                     />

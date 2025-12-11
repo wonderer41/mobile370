@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import SearchInput from '../../components/SearchInput';
 import Trending from '../../components/Trending';
 import { images } from '../../constants';
+import { useGlobalContext } from '../context/GlobalProvider';
 import { getAllPosts, getLatestPosts } from '../lib/database';
 import useAppwrite from '../lib/useAppWrite';
 
@@ -15,7 +16,7 @@ interface HomeItem {
 
 
 const Home: React.FC = () => {
-
+  const { user } = useGlobalContext();
   const { data: posts, refetch} = useAppwrite(getAllPosts);
   const { data: latestPosts } = useAppwrite(getLatestPosts);
 
@@ -65,7 +66,7 @@ const Home: React.FC = () => {
                     Welcome back 
                   </Text>
                   <Text className='text-2xl font-psemibold text-white'>
-                    Gerardo
+                    {user?.username || 'Guest'}
                   </Text>
                 </View>
               </View>

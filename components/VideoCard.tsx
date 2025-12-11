@@ -1,10 +1,12 @@
 import { icons } from '@/constants';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import React, { useState } from 'react';
-import { Image, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Text, TouchableOpacity, View } from 'react-native';
+import { getLikeCount, isVideoLiked, toggleLike } from '../app/lib/database';
 
 interface VideoCardProps {
   video: {
+    id?: number;
     title: string;
     thumbnail: string;
     video: string;
@@ -15,9 +17,11 @@ interface VideoCardProps {
   };
 }
 
-const VideoCard: React.FC<VideoCardProps> = ({video: {title, thumbnail, video, creator:{ username, avatar}} }) => {
+const VideoCard: React.FC<VideoCardProps> = ({video: {id, title, thumbnail, video, creator:{ username, avatar}} }) => {
   const [play, setPlay] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
   
   // Check if it's a direct video URL
   const isDirectVideo = video && (
@@ -33,6 +37,36 @@ const VideoCard: React.FC<VideoCardProps> = ({video: {title, thumbnail, video, c
     player.loop = false;
     player.muted = false;
   });
+
+  // Check if video is liked on mount
+  React.useEffect(() => {
+    const checkLikedAndCount = async () => {
+      if (!id) return;
+      try {
+        const [isLiked, count] = await Promise.all([
+          isVideoLiked(id),
+          getLikeCount(id)
+        ]);
+        setLiked(isLiked);
+        setLikeCount(count);
+      } catch (error) {
+        console.error('Error checking like status:', error);
+      }
+    };
+    checkLikedAndCount();
+  }, [id]);
+
+  const handleLike = async () => {
+    if (!id) return;
+    
+    try {
+      const result = await toggleLike(id);
+      setLiked(result.liked);
+      setLikeCount(prev => result.liked ? prev + 1 : prev - 1);
+    } catch (error) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to like video');
+    }
+  };
 
   // Listen for playback end
   React.useEffect(() => {
@@ -101,7 +135,22 @@ const VideoCard: React.FC<VideoCardProps> = ({video: {title, thumbnail, video, c
                     {username}
                 </Text>
             </View>
-            <View className='pt-2'>
+            <View className='flex-row items-center gap-4 pt-2'>
+                {/* Like button */}
+                <TouchableOpacity onPress={handleLike} className='flex-row items-center gap-1'>
+                  <Image 
+                    source={icons.like}
+                    className='w-5 h-5'
+                    resizeMode='contain'
+                    tintColor={liked ? '#FF9C01' : '#FFFFFF'}
+                  />
+                  {likeCount > 0 && (
+                    <Text className='text-white text-xs font-pregular'>
+                      {likeCount}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+                {/* Menu icon */}
                 <Image source={icons.menu}
                     className='w-5 h-5'
                     resizeMode='contain'

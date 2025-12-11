@@ -35,6 +35,9 @@ export async function createUser(email: string, password: string, username: stri
   try {
     console.log('Creating user with email:', email)
     
+    // Use username for both username and full_name if fullName is empty
+    const displayName = fullName && fullName.trim() !== '' ? fullName : username;
+    
     // Create auth user - this will send confirmation email if email confirmation is enabled
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
@@ -43,7 +46,7 @@ export async function createUser(email: string, password: string, username: stri
         // Store user metadata to create profile later after email confirmation
         data: {
           username: username,
-          full_name: fullName,
+          full_name: displayName,
         }
       }
     })
@@ -66,7 +69,7 @@ export async function createUser(email: string, password: string, username: stri
     }
 
     // If user is confirmed or email confirmation is disabled, create profile
-    return await createUserProfile(authData.user.id, username, fullName)
+    return await createUserProfile(authData.user.id, username, displayName)
     
   } catch (error: any) {
     console.error('CreateUser error:', error)
@@ -438,7 +441,7 @@ export async function getAllPosts() {
       video: item.videourl,
       creator: {
         username: item.profiles?.username || 'Unknown',
-        avatar: item.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.profiles?.username || 'User')}&background=random`
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(item.profiles?.username || 'User')}&background=FF9C01&color=fff&size=128`
       }
     })) || []
     
@@ -581,6 +584,160 @@ export async function getVideoById(videoId: number) {
 
     if (error) throw error
     return data
+  } catch (error: any) {
+    throw new Error(error.message)
+  }
+}
+
+// Like Functions
+
+// Toggle like on a video
+export async function toggleLike(videoId: number) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    // Check if already liked
+    const { data: existingLike } = await supabase
+      .from('likes')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('video_id', videoId)
+      .single()
+
+    if (existingLike) {
+      // Unlike
+      const { error } = await supabase
+        .from('likes')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('video_id', videoId)
+
+      if (error) throw error
+      return { liked: false }
+    } else {
+      // Like
+      const { error } = await supabase
+        .from('likes')
+        .insert([{ user_id: user.id, video_id: videoId }])
+
+      if (error) throw error
+      return { liked: true }
+    }
+  } catch (error: any) {
+    throw new Error(error.message)
+  }
+}
+
+// Get liked videos for current user
+export async function getLikedVideos() {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    // First get the liked video IDs
+    const { data: likes, error: likesError } = await supabase
+      .from('likes')
+      .select('video_id, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+
+    if (likesError) throw likesError
+    if (!likes || likes.length === 0) return []
+
+    // Then get the videos with their profiles
+    const videoIds = likes.map(l => l.video_id)
+    const { data: videos, error: videosError } = await supabase
+      .from('videos')
+      .select(`
+        id,
+        title,
+        thumbnailurl,
+        prompt,
+        videourl,
+        creator,
+        created_at,
+        profiles:creator (
+          id,
+          username,
+          full_name,
+          avatar_url
+        )
+      `)
+      .in('id', videoIds)
+
+    if (videosError) throw videosError
+
+    // Transform the data to match our Video interface
+    const result = videos
+      .filter((video: any) => !!video.profiles)
+      .map((video: any) => ({
+        $id: video.id.toString(),
+        id: video.id,
+        title: video.title,
+        thumbnail: video.thumbnailurl,
+        video: video.videourl,
+        prompt: video.prompt,
+        creator: {
+          id: video.profiles.id,
+          username: video.profiles.username,
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(video.profiles.username)}&background=FF9C01&color=fff&size=128`
+        },
+        created_at: video.created_at
+      }))
+    
+    return result
+  } catch (error: any) {
+    console.error('getLikedVideos catch error:', error)
+    throw new Error(error.message)
+  }
+}
+
+// Get like count for a video
+export async function getLikeCount(videoId: number) {
+  try {
+    const { count, error } = await supabase
+      .from('likes')
+      .select('*', { count: 'exact', head: true })
+      .eq('video_id', videoId)
+
+    if (error) throw error
+    return count || 0
+  } catch (error: any) {
+    throw new Error(error.message)
+  }
+}
+
+// Check if current user has liked a video
+export async function isVideoLiked(videoId: number) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return false
+
+    const { data, error } = await supabase
+      .from('likes')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('video_id', videoId)
+      .single()
+
+    if (error && error.code !== 'PGRST116') throw error
+    return !!data
+  } catch (error: any) {
+    throw new Error(error.message)
+  }
+}
+
+// Get user's total likes count
+export async function getUserLikesCount(userId: string) {
+  try {
+    const { count, error } = await supabase
+      .from('likes')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+
+    if (error) throw error
+    return count || 0
   } catch (error: any) {
     throw new Error(error.message)
   }

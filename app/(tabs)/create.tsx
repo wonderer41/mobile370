@@ -1,4 +1,4 @@
-import * as DocumentPicker from "expo-document-picker";
+import * as ImagePicker from 'expo-image-picker';
 import { router } from "expo-router";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useState } from "react";
@@ -40,8 +40,8 @@ const Create = () => {
   const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState<{
     title: string;
-    video: DocumentPicker.DocumentPickerAsset | null;
-    thumbnail: DocumentPicker.DocumentPickerAsset | null;
+    video: ImagePicker.ImagePickerAsset | null;
+    thumbnail: ImagePicker.ImagePickerAsset | null;
     prompt: string;
   }>({
     title: "",
@@ -52,11 +52,19 @@ const Create = () => {
 
 
   const openPicker = async (selectType: "image" | "video") => {
-    const result = await DocumentPicker.getDocumentAsync({
-      type:
-        selectType === "image"
-          ? ["image/png", "image/jpg"]
-          : ["video/mp4", "video/gif"],
+    // Request permissions
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'We need camera roll permissions to select media');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: selectType === "image" 
+        ? ImagePicker.MediaTypeOptions.Images 
+        : ImagePicker.MediaTypeOptions.Videos,
+      quality: 1,
     });
 
     if (!result.canceled) {
@@ -73,10 +81,6 @@ const Create = () => {
           video: result.assets[0],
         });
       }
-    } else {
-      setTimeout(() => {
-        Alert.alert("Document picked", JSON.stringify(result, null, 2));
-      }, 100);
     }
   };
   const submit = async () => {

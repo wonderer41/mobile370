@@ -1,16 +1,17 @@
 import { icons } from "@/constants";
 import { router } from "expo-router";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Alert, FlatList, Image, RefreshControl, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import EmptyState from "../../components/EmptyState";
 import VideoCard from "../../components/VideoCard";
 import { useGlobalContext } from "../context/GlobalProvider";
-import { getUserPosts, signOut } from "../lib/database";
+import { getUserLikesCount, getUserPosts, signOut } from "../lib/database";
 import useAppwrite from "../lib/useAppWrite";
 
 const Profile = () => {
   const { user, setUser, setIsLogged } = useGlobalContext();
+  const [likesCount, setLikesCount] = useState(0);
 
   // Fetch user's posts only if user exists
   const getUserPostsFunction = useMemo(() => {
@@ -24,10 +25,28 @@ const Profile = () => {
 
   const [refreshing, setRefreshing] = React.useState<boolean>(false);
 
+  // Fetch user's likes count
+  useEffect(() => {
+    const fetchLikesCount = async () => {
+      if (!user?.id) return;
+      try {
+        const count = await getUserLikesCount(user.id);
+        setLikesCount(count);
+      } catch (error) {
+        console.error('Error fetching likes count:', error);
+      }
+    };
+    fetchLikesCount();
+  }, [user?.id]);
+
   const onRefresh = async () => {
     try {
       setRefreshing(true);
       await refetch();
+      if (user?.id) {
+        const count = await getUserLikesCount(user.id);
+        setLikesCount(count);
+      }
     } catch (error) {
       Alert.alert('Error', error instanceof Error ? error.message : 'Failed to refresh');
     } finally {
@@ -106,8 +125,8 @@ const Profile = () => {
                 <Text className="text-gray-100">Posts</Text>
               </View>
               <View className="items-center">
-                <Text className="text-white text-xl font-semibold">0</Text>
-                <Text className="text-gray-100">Followers</Text>
+                <Text className="text-white text-xl font-semibold">{likesCount}</Text>
+                <Text className="text-gray-100">Likes</Text>
               </View>
             </View>
 
